@@ -20,7 +20,7 @@ defmodule Bamboo.PostmarkAdapter do
   @send_email_path "email"
   @send_email_template_path "email/withTemplate"
 
-  import Bamboo.ApiError, only: [build_api_error: 1]
+  import Bamboo.ApiError
 
   def deliver(email, config) do
     api_key = get_key(config)
@@ -29,7 +29,9 @@ defmodule Bamboo.PostmarkAdapter do
 
     case :hackney.post(uri, headers(api_key), params, options(config)) do
       {:ok, status, _headers, response} when status > 299 ->
-        {:error, build_api_error(%{params: params, response: response})}
+        filtered_params =
+          params |> json_library().decode!() |> Map.put("key", "[FILTERED]")
+        {:error, build_api_error("Postmark", response, filtered_params)}
 
       {:ok, status, headers, response} ->
         {:ok, %{status_code: status, headers: headers, body: response}}
